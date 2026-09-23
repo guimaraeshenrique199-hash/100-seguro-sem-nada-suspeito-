@@ -1,0 +1,547 @@
+-- =========================================================
+-- 🌧️🌈 CHUVA FESTA HENRIQUE
+-- Script 2026❗️
+-- 🧱by henrique☢️
+-- =========================================================
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- =========================================================
+-- ⚙️ CONFIGURAÇÕES
+-- =========================================================
+
+local MUSIC_ID = "rbxassetid://142376088"
+
+local MAX_OBJECTS = 60
+local SPAWN_INTERVAL = 0.12
+local FALL_HEIGHT = 100
+local FALL_TIME = 5
+local DEFAULT_MAP_SIZE = 500
+
+local CAPTION_TEXT = "chuva de pica"
+
+-- =========================================================
+-- 🎵 MÚSICA
+-- =========================================================
+
+local Music = Instance.new("Sound")
+Music.Name = "HenriquePartyMusic"
+Music.SoundId = MUSIC_ID
+Music.Volume = 0.55
+Music.Looped = true
+Music.Parent = SoundService
+
+pcall(function()
+	Music:Play()
+end)
+
+-- =========================================================
+-- 🖥️ GUI
+-- =========================================================
+
+local PartyGui = Instance.new("ScreenGui")
+PartyGui.Name = "HenriquePartyGui"
+PartyGui.ResetOnSpawn = false
+PartyGui.IgnoreGuiInset = true
+PartyGui.DisplayOrder = 999
+PartyGui.Parent = PlayerGui
+
+-- =========================================================
+-- 🌈 FLASH COLORIDO
+-- =========================================================
+
+local Flash = Instance.new("Frame")
+Flash.Name = "RainbowFlash"
+Flash.Size = UDim2.fromScale(1, 1)
+Flash.Position = UDim2.fromScale(0, 0)
+Flash.BorderSizePixel = 0
+Flash.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+Flash.BackgroundTransparency = 0.88
+Flash.Active = false
+Flash.ZIndex = 1
+Flash.Parent = PartyGui
+
+-- =========================================================
+-- 📝 LEGENDA NO TOPO
+-- =========================================================
+
+local Caption = Instance.new("TextLabel")
+Caption.Name = "PartyCaption"
+
+Caption.Size = UDim2.new(0.75, 0, 0, 45)
+Caption.Position = UDim2.new(0.125, 0, 0.025, 0)
+
+Caption.BackgroundTransparency = 1
+
+Caption.Text = CAPTION_TEXT
+Caption.TextColor3 = Color3.fromRGB(255, 255, 255)
+Caption.TextTransparency = 1
+
+Caption.TextScaled = true
+Caption.Font = Enum.Font.SciFi
+
+Caption.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+Caption.TextStrokeTransparency = 1
+
+Caption.ZIndex = 10
+Caption.Parent = PartyGui
+
+-- =========================================================
+-- ⬆️ LEGENDA APARECE, SOBE E DESAPARECE
+-- =========================================================
+
+task.spawn(function()
+
+	while Caption.Parent do
+
+		-- Volta para a posição inicial
+		Caption.Position = UDim2.new(
+			0.125, 0,
+			0.025, 0
+		)
+
+		Caption.TextTransparency = 1
+		Caption.TextStrokeTransparency = 1
+
+		-- Aparece
+		local Aparecer = TweenService:Create(
+			Caption,
+			TweenInfo.new(
+				0.35,
+				Enum.EasingStyle.Sine,
+				Enum.EasingDirection.Out
+			),
+			{
+				TextTransparency = 0,
+				TextStrokeTransparency = 0.15
+			}
+		)
+
+		Aparecer:Play()
+		Aparecer.Completed:Wait()
+
+		task.wait(0.25)
+
+		-- Sobe e desaparece
+		local Subir = TweenService:Create(
+			Caption,
+			TweenInfo.new(
+				0.9,
+				Enum.EasingStyle.Sine,
+				Enum.EasingDirection.In
+			),
+			{
+				Position = UDim2.new(
+					0.125, 0,
+					-0.025, 0
+				),
+
+				TextTransparency = 1,
+				TextStrokeTransparency = 1
+			}
+		)
+
+		Subir:Play()
+		Subir.Completed:Wait()
+
+		-- Pequena pausa antes de aparecer novamente
+		task.wait(0.4)
+
+	end
+
+end)
+
+-- =========================================================
+-- 🌈 FLASH RAINBOW
+-- =========================================================
+
+task.spawn(function()
+
+	local Colors = {
+		Color3.fromRGB(255, 0, 0),
+		Color3.fromRGB(255, 100, 0),
+		Color3.fromRGB(255, 220, 0),
+		Color3.fromRGB(0, 255, 80),
+		Color3.fromRGB(0, 200, 255),
+		Color3.fromRGB(60, 80, 255),
+		Color3.fromRGB(180, 0, 255),
+		Color3.fromRGB(255, 0, 180)
+	}
+
+	local Index = 1
+
+	while Flash.Parent do
+
+		Flash.BackgroundColor3 = Colors[Index]
+		Flash.BackgroundTransparency = 0.86
+
+		task.wait(0.10)
+
+		Flash.BackgroundTransparency = 0.93
+
+		task.wait(0.06)
+
+		Index += 1
+
+		if Index > #Colors then
+			Index = 1
+		end
+
+	end
+
+end)
+
+-- =========================================================
+-- 🌧️ PASTA DA CHUVA
+-- =========================================================
+
+local RainFolder = Instance.new("Folder")
+RainFolder.Name = "HenriquePartyRain"
+RainFolder.Parent = workspace
+
+local ActiveObjects = {}
+
+-- =========================================================
+-- 🗺️ ÁREA DO MAPA
+-- =========================================================
+
+local function GetMapArea()
+
+	local MinX = math.huge
+	local MaxX = -math.huge
+	local MinZ = math.huge
+	local MaxZ = -math.huge
+
+	local FoundPart = false
+
+	for _, Object in ipairs(workspace:GetDescendants()) do
+
+		if Object:IsA("BasePart")
+			and not Object:IsDescendantOf(RainFolder)
+			and Object.Transparency < 1
+			and Object.Size.X > 5
+			and Object.Size.Z > 5 then
+
+			local Position = Object.Position
+			local Size = Object.Size
+
+			local X1 = Position.X - Size.X / 2
+			local X2 = Position.X + Size.X / 2
+
+			local Z1 = Position.Z - Size.Z / 2
+			local Z2 = Position.Z + Size.Z / 2
+
+			MinX = math.min(MinX, X1)
+			MaxX = math.max(MaxX, X2)
+
+			MinZ = math.min(MinZ, Z1)
+			MaxZ = math.max(MaxZ, Z2)
+
+			FoundPart = true
+		end
+	end
+
+	if not FoundPart then
+
+		local Character = Player.Character
+
+		if Character then
+
+			local Root = Character:FindFirstChild("HumanoidRootPart")
+
+			if Root then
+
+				return
+					Root.Position.X - DEFAULT_MAP_SIZE / 2,
+					Root.Position.X + DEFAULT_MAP_SIZE / 2,
+					Root.Position.Z - DEFAULT_MAP_SIZE / 2,
+					Root.Position.Z + DEFAULT_MAP_SIZE / 2
+
+			end
+		end
+
+		return
+			-DEFAULT_MAP_SIZE / 2,
+			DEFAULT_MAP_SIZE / 2,
+			-DEFAULT_MAP_SIZE / 2,
+			DEFAULT_MAP_SIZE / 2
+	end
+
+	return MinX, MaxX, MinZ, MaxZ
+end
+
+-- =========================================================
+-- 📍 POSIÇÃO DE SPAWN
+-- =========================================================
+
+local function GetSpawnPosition()
+
+	local MinX, MaxX, MinZ, MaxZ = GetMapArea()
+
+	local X = MinX + math.random() * (MaxX - MinX)
+	local Z = MinZ + math.random() * (MaxZ - MinZ)
+
+	local RayOrigin = Vector3.new(X, 1000, Z)
+	local RayDirection = Vector3.new(0, -2000, 0)
+
+	local Params = RaycastParams.new()
+	Params.FilterType = Enum.RaycastFilterType.Exclude
+	Params.FilterDescendantsInstances = {
+		RainFolder
+	}
+
+	local Result = workspace:Raycast(
+		RayOrigin,
+		RayDirection,
+		Params
+	)
+
+	if Result then
+
+		return Vector3.new(
+			X,
+			Result.Position.Y + FALL_HEIGHT,
+			Z
+		)
+	end
+
+	return Vector3.new(
+		X,
+		FALL_HEIGHT,
+		Z
+	)
+end
+
+-- =========================================================
+-- 🌧️ CRIAR OBJETO DA CHUVA
+-- =========================================================
+
+local function CreatePartyObject(StartPosition)
+
+	local Model = Instance.new("Model")
+	Model.Name = "HenriquePartyObject"
+
+	-- =====================================================
+	-- ⚪ BOLA ESQUERDA
+	-- =====================================================
+
+	local Left = Instance.new("Part")
+	Left.Name = "LeftRound"
+	Left.Shape = Enum.PartType.Ball
+	Left.Size = Vector3.new(10, 7, 7)
+	Left.Color = Color3.fromRGB(255, 194, 120)
+	Left.Material = Enum.Material.SmoothPlastic
+	Left.Anchored = true
+	Left.CanCollide = false
+	Left.CanTouch = false
+	Left.CanQuery = false
+	Left.Parent = Model
+
+	-- =====================================================
+	-- ⚪ BOLA DIREITA
+	-- =====================================================
+
+	local Right = Instance.new("Part")
+	Right.Name = "RightRound"
+	Right.Shape = Enum.PartType.Ball
+	Right.Size = Vector3.new(10, 7, 7)
+	Right.Color = Color3.fromRGB(255, 194, 120)
+	Right.Material = Enum.Material.SmoothPlastic
+	Right.Anchored = true
+	Right.CanCollide = false
+	Right.CanTouch = false
+	Right.CanQuery = false
+	Right.Parent = Model
+
+	-- =====================================================
+	-- ▪️ CORPO CENTRAL
+	-- =====================================================
+
+	local Middle = Instance.new("Part")
+	Middle.Name = "MiddleLong"
+	Middle.Size = Vector3.new(6.5, 13, 6.5)
+	Middle.Color = Color3.fromRGB(255, 194, 120)
+	Middle.Material = Enum.Material.SmoothPlastic
+	Middle.Anchored = true
+	Middle.CanCollide = false
+	Middle.CanTouch = false
+	Middle.CanQuery = false
+	Middle.Parent = Model
+
+	-- =====================================================
+	-- 🟣 BOLA DE CIMA
+	-- =====================================================
+
+	local Top = Instance.new("Part")
+	Top.Name = "TopRound"
+	Top.Shape = Enum.PartType.Ball
+	Top.Size = Vector3.new(7.5, 7.5, 7.5)
+	Top.Color = Color3.fromRGB(235, 75, 255)
+	Top.Material = Enum.Material.SmoothPlastic
+	Top.Anchored = true
+	Top.CanCollide = false
+	Top.CanTouch = false
+	Top.CanQuery = false
+	Top.Parent = Model
+
+	-- =====================================================
+	-- 📐 MONTAGEM
+	-- =====================================================
+
+	local Center = CFrame.new(StartPosition)
+
+	Left.CFrame =
+		Center * CFrame.new(-4.4, 0, 0)
+
+	Right.CFrame =
+		Center * CFrame.new(4.4, 0, 0)
+
+	Middle.CFrame =
+		Center * CFrame.new(0, 6.5, 0)
+
+	Top.CFrame =
+		Center * CFrame.new(0, 14.5, 0)
+
+	Model.PrimaryPart = Middle
+	Model.Parent = RainFolder
+
+	-- =====================================================
+	-- 🌀 QUEDA DO MODELO INTEIRO
+	-- =====================================================
+
+	local StartPivot = Model:GetPivot()
+
+	local EndPivot =
+		CFrame.new(
+			StartPosition.X,
+			StartPosition.Y - FALL_HEIGHT - 20,
+			StartPosition.Z
+		)
+		*
+		CFrame.Angles(
+			math.rad(math.random(180, 540)),
+			math.rad(math.random(180, 540)),
+			math.rad(math.random(180, 540))
+		)
+
+	local PivotValue = Instance.new("CFrameValue")
+	PivotValue.Value = StartPivot
+
+	local Connection
+
+	Connection =
+		PivotValue:GetPropertyChangedSignal("Value"):Connect(function()
+
+			if Model and Model.Parent then
+				Model:PivotTo(PivotValue.Value)
+			end
+
+		end)
+
+	local Tween = TweenService:Create(
+		PivotValue,
+		TweenInfo.new(
+			FALL_TIME,
+			Enum.EasingStyle.Linear
+		),
+		{
+			Value = EndPivot
+		}
+	)
+
+	Tween:Play()
+
+	table.insert(
+		ActiveObjects,
+		Model
+	)
+
+	-- =====================================================
+	-- 🗑️ REMOVER QUANDO TERMINAR
+	-- =====================================================
+
+	Tween.Completed:Connect(function()
+
+		if Connection then
+			Connection:Disconnect()
+		end
+
+		PivotValue:Destroy()
+
+		for i = #ActiveObjects, 1, -1 do
+
+			if ActiveObjects[i] == Model then
+
+				table.remove(
+					ActiveObjects,
+					i
+				)
+
+				break
+			end
+		end
+
+		if Model then
+			Model:Destroy()
+		end
+
+	end)
+
+end
+
+-- =========================================================
+-- 🌧️ LOOP DA CHUVA
+-- =========================================================
+
+task.spawn(function()
+
+	while true do
+
+		if #ActiveObjects < MAX_OBJECTS then
+
+			local Position = GetSpawnPosition()
+
+			if Position then
+				CreatePartyObject(Position)
+			end
+
+		end
+
+		task.wait(SPAWN_INTERVAL)
+	end
+
+end)
+
+-- =========================================================
+-- 🧹 LIMPEZA
+-- =========================================================
+
+Player.CharacterRemoving:Connect(function()
+
+	for _, Object in ipairs(ActiveObjects) do
+
+		if Object then
+			Object:Destroy()
+		end
+
+	end
+
+	table.clear(ActiveObjects)
+
+end)
+
+-- =========================================================
+-- 📢 STATUS
+-- =========================================================
+
+print("CHUVA FESTA ATIVADA!")
+print("FLASH RAINBOW ATIVADO!")
+print("LEGENDA ANIMADA ATIVADA!")
+print("MÚSICA EM LOOP!")
+print("60 OBJETOS ATIVOS!")
+print("by henrique")
